@@ -47,6 +47,7 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 ```
 ## Deployment Options
 Option 1: Running Locally
+**Note**: Please check and update the MinIO API port.
 
 Start the FastMCP server:
 ```bash
@@ -57,7 +58,9 @@ python remote_fastmcp_server.py
 The server will start on http://localhost:9999 by default.
 
 Option 2: Deploying to Kubernetes
-**Note**: Kubernetes is a pre-requisite
+**Note**:
+ - Kubernetes is a pre-requisite
+ - Please check and update the MinIO API port in `k8s/configmap.yaml`
 ```bash
 ./automation.sh
 ```
