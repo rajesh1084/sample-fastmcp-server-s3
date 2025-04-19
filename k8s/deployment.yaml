@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-fastmcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-fastmcp-server
+  template:
+    metadata:
+      labels:
+        app: s3-fastmcp-server
+    spec:
+      hostNetwork: true
+      containers:
+        - name: s3-fastmcp-server
+          image: s3-fastmcp-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9999
+          envFrom:
+            - configMapRef:
+                name: s3-server-config
+            - secretRef:
+                name: s3-server-secrets
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"

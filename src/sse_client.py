@@ -7,7 +7,7 @@ from mcp.client.sse import sse_client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp-s3-client")
 
-SERVER_URL = "http://localhost:9999/sse"
+SERVER_URL = "http://localhost:30999/sse"  # Change this to your server URL
 
 
 async def main():

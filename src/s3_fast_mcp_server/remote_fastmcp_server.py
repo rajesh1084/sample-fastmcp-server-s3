@@ -29,7 +29,7 @@ sse_transport = SseServerTransport(endpoint="/sse")
 server = FastMCP(
     name="S3MCPServer",
     instructions="An MCP server for interacting with S3 storage.",
-    host="localhost",
+    host="0.0.0.0",
     port=9999,
 )
 
@@ -47,6 +47,7 @@ s3_resource = S3Resource(
 minio_config = Config(
     signature_version="s3v4",
     region_name=os.getenv("AWS_REGION", "us-east-1"),
+    s3={"addressing_style": "path"},  # Use path-style addressing for MinIO
 )
 
 boto3_s3_client = boto3.client(
@@ -56,6 +57,7 @@ boto3_s3_client = boto3.client(
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", None),
     config=minio_config,
     verify=False,  # Disable SSL verification for MinIO
+    use_ssl=False,  # Disable SSL for MinIO
 )
 
 
@@ -269,5 +271,7 @@ async def delete_object_tool(bucket: str, key: str) -> dict:
 
 if __name__ == "__main__":
     # Run the server with the SSE transport
-    logger.info("Starting S3 MCP server on http://0.0.0.0:8000")
+    logger.info(
+        f"Starting S3 MCP server on http://{server.settings.host}:{server.settings.port}"
+    )
     server.run(transport="sse")

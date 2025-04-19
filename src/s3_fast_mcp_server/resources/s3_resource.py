@@ -40,7 +40,6 @@ class S3Resource:
             read_timeout=60,
             max_pool_connections=50,
             signature_version="s3v4",
-            # s3={'addressing_style': 'path'},
             region_name=region_name,
         )
 
