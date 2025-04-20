@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 from mcp import ClientSession
 from mcp.client.sse import sse_client
@@ -157,38 +158,122 @@ async def main():
                             "GetObject", {"bucket": bucket_name, "key": object_key}
                         )
 
-                        # Extract content based on result type
-                        if hasattr(result, "text"):
-                            content = result.text
-                        elif hasattr(result, "content"):
-                            content = result.content
-                        elif isinstance(result, dict) and "content" in result:
-                            content = result["content"]
+                        # Handle the result based on its structure and encoding
+                        if isinstance(result, dict):
+                            # Display object metadata
+                            print(f"\nObject Information:")
+                            print(
+                                f"Content Type: {result.get('content_type', 'Unknown')}"
+                            )
+                            print(f"Size: {result.get('size_bytes', 'Unknown')} bytes")
+                            print(
+                                f"Last Modified: {result.get('last_modified', 'Unknown')}"
+                            )
+
+                            # Check encoding type to determine how to handle content
+                            encoding = result.get("encoding", "utf-8")
+
+                            if encoding == "base64":
+                                # Handle binary content (PDF, images, etc.)
+                                print(
+                                    f"\nBinary content detected ({result.get('content_type')})"
+                                )
+                                save_option = input("Save to file? (y/n): ")
+
+                                if save_option.lower() == "y":
+                                    save_path = input("Enter save path: ")
+                                    try:
+                                        binary_data = base64.b64decode(
+                                            result["content"]
+                                        )
+                                        with open(save_path, "wb") as f:
+                                            f.write(binary_data)
+                                        print(f"File saved successfully to {save_path}")
+                                    except Exception as e:
+                                        print(f"Error saving file: {e}")
+                            else:
+                                # Handle text content
+                                content = result.get("content", "")
+                                print(f"\nContent of {object_key}:")
+                                print("-----------------------------------")
+                                print(
+                                    content[:1000]
+                                    + ("..." if len(content) > 1000 else "")
+                                )
+                                print("-----------------------------------")
+
+                                # Optional: Save text content to file
+                                save_option = input("Save text to file? (y/n): ")
+                                if save_option.lower() == "y":
+                                    save_path = input("Enter save path: ")
+                                    try:
+                                        with open(
+                                            save_path, "w", encoding="utf-8"
+                                        ) as f:
+                                            f.write(content)
+                                        print(f"File saved successfully to {save_path}")
+                                    except Exception as e:
+                                        print(f"Error saving file: {e}")
                         else:
-                            content = str(result)
+                            # Fallback for older or unexpected response formats
+                            print(f"\nContent of {object_key}:")
+                            print("-----------------------------------")
+                            print(
+                                str(result)[:1000]
+                                + ("..." if len(str(result)) > 1000 else "")
+                            )
+                            print("-----------------------------------")
 
-                        # Convert list to string if content is a list
-                        if isinstance(content, list):
-                            content = "\n".join(str(item) for item in content)
-
-                        print(f"\nContent of {object_key}:")
-                        print("-----------------------------------")
-                        print(content[:1000] + ("..." if len(content) > 1000 else ""))
-                        print("-----------------------------------")
                     except Exception as e:
                         print(f"Error retrieving object: {e}")
 
+                # For uploading files
                 elif choice == "6":
                     # Upload object
                     bucket_name = input("Enter bucket name: ")
                     new_key = input("Enter object key for the new file: ")
-                    content = input("Enter content for the new file: ")
+                    file_option = input("Upload from (1) Text input or (2) File path? ")
+
+                    if file_option == "1":
+                        # Text input (existing functionality)
+                        content = input("Enter content for the new file: ")
+                        is_base64 = False
+                        content_type = "text/plain"
+                    else:
+                        # File upload
+                        file_path = input("Enter path to file: ")
+                        try:
+                            with open(file_path, "rb") as file:
+                                binary_content = file.read()
+                                content = base64.b64encode(binary_content).decode(
+                                    "ascii"
+                                )
+                                is_base64 = True
+
+                                # Infer content type from extension
+                                if file_path.lower().endswith(".pdf"):
+                                    content_type = "application/pdf"
+                                elif file_path.lower().endswith((".jpg", ".jpeg")):
+                                    content_type = "image/jpeg"
+                                elif file_path.lower().endswith(".png"):
+                                    content_type = "image/png"
+                                else:
+                                    content_type = "application/octet-stream"
+                        except Exception as e:
+                            print(f"Error reading file: {e}")
+                            continue
 
                     logger.info(f"Uploading to {bucket_name}/{new_key}...")
                     try:
                         result = await session.call_tool(
                             "PutObject",
-                            {"bucket": bucket_name, "key": new_key, "content": content},
+                            {
+                                "bucket": bucket_name,
+                                "key": new_key,
+                                "content": content,
+                                "content_type": content_type,
+                                "is_base64": is_base64,
+                            },
                         )
                         print(f"\nUpload result: {result}")
                     except Exception as e:

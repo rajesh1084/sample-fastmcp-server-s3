@@ -228,28 +228,85 @@ async def list_objects_tool(
 
 # Tool: Get Object
 @server.tool(
-    name="GetObject", description="Retrieve an object from S3 by bucket and key"
+    name="GetObject",
+    description="Retrieve an object from S3 by bucket and key with chunking support for large files",
 )
-async def get_object_tool(bucket: str, key: str) -> str:
+async def get_object_tool(bucket: str, key: str) -> dict:
     """Get an object from S3 by bucket and key"""
     try:
         response = boto3_s3_client.get_object(Bucket=bucket, Key=key)
-        file_content = response["Body"].read().decode("utf-8", errors="replace")
-        return file_content
+        content_type = response.get("ContentType", "application/octet-stream")
+        file_size = response.get("ContentLength", 0)
+        last_modified = (
+            response.get("LastModified", "").isoformat()
+            if response.get("LastModified")
+            else None
+        )
+
+        # For all files, we'll now use a single approach
+        data = response["Body"].read()
+        result = {
+            "content_type": content_type,
+            "size_bytes": len(data),
+            "last_modified": last_modified,
+            "large_file": file_size >= 5 * 1024 * 1024,
+        }
+
+        # Process based on file type
+        if s3_resource.is_text_file(key):
+            try:
+                result["content"] = data.decode("utf-8")
+                result["encoding"] = "utf-8"
+            except UnicodeDecodeError:
+                result["content"] = base64.b64encode(data).decode("utf-8")
+                result["encoding"] = "base64"
+        else:
+            result["content"] = base64.b64encode(data).decode("utf-8")
+            result["encoding"] = "base64"
+
+        return result
+
     except Exception as e:
         logger.error(f"Error getting object {key} from bucket {bucket}: {str(e)}")
         raise ValueError(f"Failed to get object: {str(e)}")
 
 
 # Tool: Put Object
-@server.tool(name="PutObject", description="Upload content to an S3 object")
+@server.tool(
+    name="PutObject",
+    description="Upload content to an S3 object (supports text and binary content)",
+)
 async def put_object_tool(
-    bucket: str, key: str, content: str, content_type: str = "text/plain"
+    bucket: str,
+    key: str,
+    content: str,
+    content_type: str = "text/plain",
+    is_base64: bool = False,
 ) -> dict:
-    """Upload content to an S3 object"""
+    """
+    Upload content to an S3 object
+
+    For binary files (like PDFs), content should be base64-encoded and is_base64 set to True
+    """
     try:
+        # Decode base64 for binary files
+        if is_base64:
+            body = base64.b64decode(content)
+            if not content_type or content_type == "text/plain":
+                # Infer content type from extension for binary files
+                if key.lower().endswith(".pdf"):
+                    content_type = "application/pdf"
+                elif key.lower().endswith((".jpg", ".jpeg")):
+                    content_type = "image/jpeg"
+                elif key.lower().endswith(".png"):
+                    content_type = "image/png"
+                else:
+                    content_type = "application/octet-stream"
+        else:
+            body = content
+
         response = boto3_s3_client.put_object(
-            Bucket=bucket, Key=key, Body=content, ContentType=content_type
+            Bucket=bucket, Key=key, Body=body, ContentType=content_type
         )
         return {"status": "success", "response": str(response)}
     except Exception as e:

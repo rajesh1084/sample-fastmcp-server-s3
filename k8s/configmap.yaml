@@ -3,6 +3,6 @@ kind: ConfigMap
 metadata:
   name: s3-server-config
 data:
-  S3_ENDPOINT_URL: "http://host.docker.internal:9000"
+  S3_ENDPOINT_URL: "http://172.17.0.2:9000"
   AWS_REGION: "ind-south-1"
   S3_MAX_BUCKETS: "5"
