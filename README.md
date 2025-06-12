@@ -1,5 +1,5 @@
 # S3 FastMCP Server
-A Machine Communication Protocol (MCP) server for interacting with S3-compatible storage services like AWS S3 and MinIO.
+A Model Context Protocol (MCP) server for interacting with S3-compatible storage services like AWS S3/MinIO.
 
 ## Overview
 This project implements a FastMCP server that exposes S3 storage operations through a simple API. It allows clients to perform common S3 operations such as listing buckets, creating/deleting buckets, uploading/downloading objects, and more.
