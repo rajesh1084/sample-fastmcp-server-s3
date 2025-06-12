@@ -79,3 +79,4 @@ python sse_client.py
  - SSL verification is disabled for MinIO by default
 
 ## License
+None
